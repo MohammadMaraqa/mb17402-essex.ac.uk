@@ -329,7 +329,8 @@ For this project a cultivated database was developed called â€œSanadProject.dbâ€
 >}
 >```
 5.Create onCreate method to execute tables:-
->```java
+
+> ```java
 >@Override  
 >public void onCreate(SQLiteDatabase db) {  
 >    db.execSQL(SQL_CAREGIVER_CREATE_TABLE);  
@@ -341,6 +342,7 @@ For this project a cultivated database was developed called â€œSanadProject.dbâ€
 >} 
 >```
 6. Finally the onUpgrade method:-
+
 > ```java
 > // Will check if tables already exist or not
 >@Override  
@@ -364,6 +366,7 @@ Emergency call functionality is executed whenever the user clicks on the "Call E
 **Call emergency action code is shown below:-**
 
 Client side of the functionality:-
+
 > ```java
 >// Button to execute action
 >// TextView to show the output of the connection between client and server
@@ -645,6 +648,7 @@ ___
 
 **There are two thorough processes of face recognition;**
 1.  It begins with a detailed process of face detection which consists of; extracting and fixating the image and following it with the function of normalisation of the landmarks of the face such as; the eyes, mouth and the nose. Then extracting and selecting the facial features.
+
 > ```java
 > //This variable uses the service 'HumanAwareness' found in QiSDK which expose actions and properties related to humans
 > private HumanAwareness humanAwareness;
@@ -713,7 +717,8 @@ ___
 >}
 >```
 >The class below will receive the photo path and extract the facial features from it and draw a rectangle around the face using Luxand FaceSDK
->```java
+
+> ```java
 >private class DetectFaceInBackground extends AsyncTask<String, Void, String> {  
 >    protected FSDK.TFacePosition faceCoords;  
 >    protected String picturePath;  
@@ -780,7 +785,8 @@ ___
 2. The second process revolves around the comparison of the interfacial features stored in "SanadProject.db" database.
 >
 >After detecting the face and extracting the face features we will create a template for the face to store it and then send it to the method matchFaces to do the recognition part:-
->```java
+
+> ```java
 >public boolean matchFaces(FSDK.FSDK_FaceTemplate faceTemp) {  
 >    // Get all face templates of all users from database with their ids
 >    HashMap<Integer, FSDK.FSDK_FaceTemplate> patientsList = patientDAO.getAllPatientTemplates();  
