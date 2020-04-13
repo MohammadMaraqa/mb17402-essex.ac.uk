@@ -492,10 +492,9 @@ ClientThread Class:
 
 Server side of the functionality:-
 > 
-> ```java
 > //First add this in manifest file:
 > "<uses-permission android:name="android.permission.CALL_PHONE/>"
-> 
+> ```java
 > // Handler to handle messages sent and received
 > // ServerSocket create a server with the specified port and local IP address to bind to
 > // Socket is an endpoint for communication between two machine
@@ -827,7 +826,217 @@ ___
 >    return false;
 > }
 >```
+___
+**4. Sanad Reminders**
+Alarm manager gathers data from the database, which consists of the patient’s daily tasks, medical related issues, and the timing of the required reminding. Furthermore, translates the date stored into actions performed by the robot set at a specific time.
 
+>  Create setReminder method to send data to the alarmManager to manage the time of each data
+>```java
+>private void setReminder() {  
+>    // Get the last reminder inserted from reminders table
+>    List<Reminder> allReminders = reminderDAO.getRemindersOfPatient(patient.getId());  
+>    Reminder lastReminder = allReminders.get(allReminders.size() - 1);  
+>    // Get the wakeup time from the reminder object and split it and assign first part to the hour and second to the min
+>    String[] w = lastReminder.getWakeupTime().split(":");  
+>    int hour = Integer.parseInt(w[0]);  
+>    int min = Integer.parseInt(w[1]);  
+>    // Will show the time for the wakeup alarm
+>    Log.e(TAG, "reminder is set to " + hour + " " + min);  
+>  
+>    // Then we have to create a calendar object to get the time 
+>    // in milli seconds as this is the type the alarm manager use
+>    Calendar wakeupAlarmCalendar = Calendar.getInstance();  
+>    wakeupAlarmCalendar.set(  
+>              wakeupAlarmCalendar.get(Calendar.YEAR),  
+>              wakeupAlarmCalendar.get(Calendar.MONTH),  
+>              wakeupAlarmCalendar.get(Calendar.DAY_OF_MONTH),
+>                hour, min, 0 
+>         );  
+>  
+>    long wakeupAlarm = wakeupAlarmCalendar.getTimeInMillis();  
+>  
+>    // Create a new object of alarmManager and give it 
+>    // the context 'ALARM_SERVICE'
+>    AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);  
+>    // Create a new intent to send the data to the class 
+>    // that extends BroadcastReceiver to handle actions when alarm manager get executed
+>    Intent intent = new Intent(this, PatientReminders.class);  
+>    intent.putExtra("alarmOption", "wakeup");  
+>    intent.putExtra("pitch", pitch);  
+>    intent.putExtra("speed", speed);  
+>    // pending intent it has description of an Intent and target 
+>    // action to perform with it and
+>    // 'PendingIntent.FLAG_UPDATE_CURRENT' is used 
+>    // to update the same alarm not create a new one
+>    PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);  
+>    alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, wakeupAlarm, AlarmManager.INTERVAL_DAY, pendingIntent);
+>```
+
+> A class that extends BroadcastReceiver to handle the execution of alarmManager
+> ```java
+> public class PatientReminders extends BroadcastReceiver {  
+>    // The below string to receive data from the intents above to know which action to execute and to assign the pitch and speed of the robot voice 
+>    private String alarmOption;    
+>    private float pitch;  
+>    private float speed;     
+>    private MediaPlayer mediaPlayer;    
+>  
+>  @Override  
+>  public void onReceive(Context context, Intent intent) {   
+>         // Assign each value to its variable
+>         alarmOption = intent.getStringExtra("alarmOption");  
+>         pitch = intent.getFloatExtra("pitch", 0.5f);  
+>         speed = intent.getFloatExtra("speed", 0.5f);  
+>         // Ue switch statement to check which option got executed
+>         switch (alarmOption) {  
+>            case "wakeup":  
+>                // Will create a new intent to send data to the textToSpeech Engine to make the robot say the given phrase
+>                Intent intent1 = new Intent();  
+>                intent1.setClass(context, TTS.class);  
+>                intent1.putExtra("MESSAGE", "Its time to wake up");  
+>                intent1.putExtra("pitch", pitch);  
+>                intent1.putExtra("speed", speed);  
+>                // addFalgs will open a new task after the previus intent
+>                intent1.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK |  Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);  
+>                //We can assign an alarm to be executed with sound of the robot.
+>                mediaPlayer = MediaPlayer.create(context, >Settings.System.DEFAULT_ALARM_ALERT_URI);  
+>                mediaPlayer.start();  
+>                context.startActivity(intent1);  
+>                break;
+>          }
+>     }
+> }    
+> ```
+___
+**5. Voice Modulation**
+This function allow us to change the speed and pitch of the TextToSpeech Engine to make it suitable for patients to accept reminders as it will be a voice that they are familiar with:-
+>```java
+>   // TextToSpeech object is the android library to be able to transform text to speech
+>   private TextToSpeech mTTs;
+>   // To get the values assigned for the pitch and speed from the user
+>   private float pitch;  
+>   private float speed;
+>
+>   //In onCreate method initialise mTTs variable
+>   mTTS = new TextToSpeech(this, new TextToSpeech.OnInitListener() {  
+>        @Override  
+>        public void onInit(int status) {  
+>            if (status == TextToSpeech.SUCCESS) {  
+>            // set the language we want to use
+>            int result = mTTS.setLanguage(Locale.ENGLISH);  
+>            Log.e("TTS", "Supported");  
+>            //Check if language supported
+>            if (result == TextToSpeech.LANG_MISSING_DATA 
+>            || result == >TextToSpeech.LANG_NOT_SUPPORTED) {  
+>            Log.e("TTS", "Language not supported");  
+>            } else {  
+>                setVoiceBtn.setEnabled(true);  
+>               }  
+>        } else {  
+>            Log.e("TTS", "Initialization Failed");  
+>          }  
+>    }  
+>});
+>```
+>Create a method that take text to be used to transform it to speech and to assign its pitch and speed
+>```java
+>private void sayTTs(String text) {    
+>    // Will get the data from the pitch bar and speed bar to assign it to setPitch and setSpeechRate
+>    pitch = (float) pSeekBarPitch.getProgress() / 50;  
+>    if (pitch < 0.1) {  
+>        pitch = 0.1f;  
+>  }  
+>    speed = (float) pSeekBarSpeed.getProgress() / 50;  
+>    if (speed < 0.1) {  
+>        speed = 0.1f;  
+>  }  
+>  
+>    mTTS.setPitch(pitch);  
+>    mTTS.setSpeechRate(speed);  
+>  
+>    // Send the text to speak function set it to TextToSpeech.QUEUE_FLUSH'' 
+>    // to put phrases in queue so it wont fail
+>    int speechStatus = mTTS.speak(text, TextToSpeech.QUEUE_FLUSH, null);  
+>    if (speechStatus == TextToSpeech.ERROR) {  
+>        Log.e(TAG, "Error in converting text to speech");  
+>     }  
+> }
+>```
+___
+**6. Chatbot**
+Sanad was specifically developed to aid with basic life support which is an overview of how to deal with urgent life or death situations without necessarily having to contact professional help. Conversations can include for example a list of commutative questions for the user to answer and based on their responsive answers the following set of actions would be taken. The chatbot was developed using AIML ( Artificial Intelligence Markup Language ) and using Program AB which is a program that references implementation of AIML 2.0 draft specification.
+
+**To develop your own chatbot using AIML check code below:-**
+>```
+><category>
+>    //You insert user message between patter tags
+>    <pattern>HI</pattern>
+>    
+>    //Insert bot answer for a specific message between 
+>    // template tags
+>    <template>
+>        Hi There, how may I help? 
+>        Type '1': Basic life support
+>        Type '2': Other help
+>    </template>
+></category>
+>```
+>After building the AIML code for the chatbot we will add it files .aiml files to our project in assets as a folder and then create a class that will send these files to the program AB to use it to answer your queries:
+>```java
+>//Create folder to add the aiml files and other files required for the chatbot.  
+>private void custom() {  
+>    //Checks if sd cart is available  
+>    boolean available = isSDCartAvailable();  
+>  
+>    //Access the assets firectory and get the files  
+>     AssetManager assets = getResources().getAssets();  
+>     Create a new directory on the device
+>     String pFileRoot = Environment.getExternalStorageDirectory().toString() + "/SanadProject";  
+>     //add files inside the folder
+>     File filename = new File(pFileRoot + "/TBC/bots/botv4");  
+>     boolean makeFile = filename.mkdirs();  
+>  
+>     if (filename.exists()) {  
+>        try {  
+>            // Loop inside the assets file and create new folder on the device according on the file in assets
+>            for (String dir : assets.list("botv4")) {  
+>                File subDir = new File(filename.getPath() + "/" + dir);  
+>                boolean subDirCheck = subDir.mkdirs();  
+>  
+>                for (String file : assets.list("botv4/" + dir)) {  
+>                      File newFile = new File(filename.getPath() + "/" + dir + "/" + file);  
+>  
+>                   if (newFile.exists()) {  
+>                        continue;  
+>                    }  
+>  
+>                    //Transfer files and data to mobile device  
+>                    InputStream in;  
+>                    OutputStream out;  
+>                    String str;  
+>                    in = assets.open("botv4/" + dir + "/" + file);  
+>                    out = new FileOutputStream(filename.getPath() + "/" + dir + "/" + file);  
+>                   // Copy data and files to the created files on device
+>                    copyFile(in, out);  
+>                    in.close();  
+>                    out.flush();  
+>                 }  
+>            }  
+>        } catch (IOException e) {  
+>            e.printStackTrace();  
+>  
+>            Toast.makeText(SanadChatBot.this, "Unable to create directory", Toast.LENGTH_SHORT).show();  
+>          }  
+>    }  
+>  
+>    MagicStrings.root_path = Environment.getExternalStorageDirectory().toString() +."/SanadProject/TBC";  
+>    AIMLProcessor.extension = new PCAIMLProcessorExtension();  
+ >
+>    //Assign bot and add it to chat  
+>    bot = new Bot("botv4", MagicStrings.root_path, "chat");  
+>    chat = new Chat(bot);  
+>}
+>```
 
 
 
